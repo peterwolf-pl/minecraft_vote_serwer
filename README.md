@@ -63,6 +63,17 @@ Aby je publikować, należy dodać **zaufany serwerowy endpoint** na mkal.pl i s
 ```
 Pole `email` nie jest wysyłane. Nagłówek `Authorization: Bearer <token>` jest opcjonalny; nagłówek `Idempotency-Key` pomaga uniknąć duplikatów po ponowieniu. **Tylko odpowiedź HTTP 2xx** oznacza zsynchronizowanie. Endpoint powinien atomowo weryfikować token, UUID, zgodę i idempotencję.
 
+
+## Docker Compose
+Uruchomienie bez lokalnego Node.js (wymaga Docker Engine z Compose):
+
+```bash
+docker compose up -d --build
+docker compose logs -f
+```
+
+Porty: TCP 25565 dla Minecrafta oraz TCP 3000 dla panelu wyników. Dane głosów przechowuje wolumen `vote-data`, więc przetrwają ponowne uruchomienie kontenera. Jeśli panel WWW ma być udostępniony publicznie, umieść przed nim proxy HTTPS.
+
 ## Ograniczenia
 - **1.21.4**, ponieważ Flying Squid 1.12.0 nie deklaruje wsparcia dla 1.21.6 ani 26.x. Natywne Dialogs API istnieje dopiero od **1.21.6**, dlatego tu interfejsem jest chat z komendami.
 - Lectern w świecie jest blokiem bez umieszczonej książki. PPM działa przez zdarzenie interakcji serwera, **nie** otwiera natywnego GUI książki.
