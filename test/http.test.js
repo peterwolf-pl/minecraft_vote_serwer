@@ -1,0 +1,26 @@
+'use strict'
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const os = require('node:os')
+const path = require('node:path')
+const fs = require('node:fs')
+const { VoteStore } = require('../src/store')
+const { createHttpServer } = require('../src/http')
+test('HTTP dashboard and read-only results API respond correctly', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-vote-http-'))
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
+  const ballot = { id: 'example', title: 'Example', question: 'Stay independent?', choices: { yes: 'Yes', no: 'No' } }
+  const store = new VoteStore(path.join(dir, 'votes.json'))
+  const http = createHttpServer(store, ballot, { port: 0 })
+  const addr = await http.start()
+  t.after(() => http.close())
+  const url = 'http://127.0.0.1:' + addr.port
+  assert.equal((await fetch(url + '/api/health')).status, 200)
+  assert.match(await (await fetch(url)).text(), /Minecraft Vote Server/)
+  store.vote(ballot.id, '01234567-89ab-cdef-0123-456789abcdef', 'yes')
+  const res = await fetch(url + '/api/results')
+  assert.equal(res.headers.get('access-control-allow-origin'), '*')
+  assert.equal((await res.json()).votes.yes, 1)
+  assert.equal((await fetch(url + '/api/unknown')).status, 404)
+  assert.equal((await fetch(url + '/api/results', { method: 'POST' })).status, 404)
+})
