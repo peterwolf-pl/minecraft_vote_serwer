@@ -6,7 +6,7 @@ const room = require('./room-generator')
 function sameBlock(a, b) { return Boolean(a && a.x === b.x && a.y === b.y && a.z === b.z) }
 function attachVoting(server, store, config, appealSync, logger = console) {
   const { ballot } = config
-  const say = (player, message) => player.chat(message)
+  const say = (player, message) => player.chat(message.replace(/&[0-9a-fk-or]/gi, ''))
   const helpVote = (player) => {
     say(player, '&6' + ballot.title)
     say(player, '&f' + ballot.question)
@@ -30,9 +30,9 @@ function attachVoting(server, store, config, appealSync, logger = console) {
     parse: str => /^(yes|no)$/i.test(str.trim()) ? str.trim().toLowerCase() : false,
     action: (choice, { player }) => {
       const result = store.vote(ballot.id, player.uuid, choice)
-      if (!result.created) return 'Juz glosowales. Zapisany glos: ' + ballot.choices[result.choice]
+      if (!result.created) { say(player, 'Juz glosowales. Zapisany glos: ' + ballot.choices[result.choice]); return }
       logger.info('[vote] ' + player.uuid + ' -> ' + choice)
-      return 'Twoj glos ' + ballot.choices[choice] + ' zostal zapisany.'
+      say(player, 'Twoj glos ' + ballot.choices[choice] + ' zostal zapisany.')
     }
   })
   server.commands.add({
@@ -40,12 +40,12 @@ function attachVoting(server, store, config, appealSync, logger = console) {
     parse: str => str.trim().toLowerCase() === 'sign' ? 'sign' : false,
     action: (_arg, { player }) => {
       const result = store.sign(player.uuid)
-      if (!result.created) return 'Podpis jest juz zapisany (status: ' + result.signature.status + ').'
+      if (!result.created) { say(player, 'Podpis jest juz zapisany (status: ' + result.signature.status + ').'); return }
       logger.info('[appeal] local signature ' + player.uuid)
       appealSync.flush().catch(error => logger.error(error))
-      return config.syncUrl
+      say(player, config.syncUrl
         ? 'Podpis zapisany. Trwa proba wyslania do WWW. Status potwierdzisz u administratora.'
-        : 'Podpis zapisany lokalnie. Publikacja na mkal.pl wymaga konfiguracji API.'
+        : 'Podpis zapisany lokalnie. Publikacja na mkal.pl wymaga konfiguracji API.')
     }
   })
   server.commands.add({
