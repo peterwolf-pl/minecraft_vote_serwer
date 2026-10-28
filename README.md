@@ -1,87 +1,141 @@
 # Minecraft Vote Server
 
-Mały serwer głosowania Minecraft **Java Edition 1.21.4**, napisany w Node.js. Nie wymaga modów u graczy ani serwera Java.
+**Jeden serwer Minecraft Java dla graczy Vanilla, Fabric, Forge i NeoForge**, z wersjami **26.3, 26.2, 1.21.11, 1.21.1, 1.20.1**. Użytkownicy nie instalują dodatkowego moda do głosowania.
 
-## Funkcje
-- Jedno pomieszczenie **10 x 10** bloków, umieszczone w jednym chunku 16 x 16. Poza nim brak generowania terenu.
-- Dwa pulpity Lectern: głosowanie i podpisanie apelu MKA. Kliknij PPM, aby zobaczyć instrukcje na czacie.
-- Głosowanie: `/vote yes` albo `/vote no`, jeden głos na uwierzytelnione UUID i identyfikator głosowania.
-- Apel: `/appeal sign`, jeden podpis na UUID. Imię i nazwisko = UUID, miasto = `MINECRAFT`, bez emaila.
-- Tryb Adventure, brak uprawnień operatora dla graczy, `online-mode=true` (weryfikacja kont Microsoft).
-- Trwały zapis do JSON (atomowa zamiana pliku), brak mapy na dysku.
-- Panel WWW i publiczne API **tylko do odczytu**: `GET /api/results`, `GET /api/health`.
-- Opcjonalna synchronizacja podpisów przez bezpieczny webhook HTTPS z retry i kluczem idempotencji.
-- Testy automatyczne i GitHub Actions.
+Architektura:
+- **Paper 26.3 / Java 25**: serwer gry i plugin `MKAVote`.
+- **ViaVersion + ViaBackwards 5.12.2+**: tłumaczenie protokołów starszych klientów na Paper 26.3.
+- **Node.js 22+**: uwierzytelnione API zapisu głosów, baza JSON, synchronizacja apelu, panel WWW.
+- **Minecraft inventory GUI** (zamiast Dialogs API): współdzielony interfejs dla starych i nowych klientów.
+- Jeden pokój 10 x 10 w pustym świecie. Dwa Lectern, brak generowania terenu, Adventure Mode.
 
-## Instalacja
-Wymaga **Node.js 22 lub nowszego**.
+## Szybki start z Docker Compose
+
+Wymagane: Docker + Docker Compose, połączenie z internetem podczas pierwszej instalacji i dostęp do portu TCP 25565.
 
 ```bash
 git clone https://github.com/peterwolf-pl/minecraft_vote_serwer.git
 cd minecraft_vote_serwer
-npm install
-npm test
-npm start
-```
-
-Adres Minecraft (domyślnie): `<IP serwera>:25565`. W launcherze wybierz **Minecraft Java 1.21.4**. Gracze **nie instalują modów**.
-
-Panel wyników jest domyślnie dostępny lokalnie na porcie `3000`. Aby wystawić go publicznie, ustaw `HTTP_HOST=0.0.0.0` i skonfiguruj proxy HTTPS. Do integracji ze stroną WWW wystarczy JSON z `/api/results`.
-
-## Konfiguracja
-```bash
 cp .env.example .env
-node --env-file=.env src/main.js
-```
-Pola: `MC_HOST`, `MC_PORT`, `HTTP_HOST`, `HTTP_PORT`, `DATA_FILE`, `APPEAL_SYNC_URL`, `APPEAL_SYNC_TOKEN`.
-
-Pytanie i opcje edytuj w `config/ballot.json`; restart serwera wczytuje zmiany. **Uwaga:** zmień `ballot.id` przy nowym, osobnym głosowaniu. Zachowaj kopię katalogu `data/`.
-
-## Jak głosować w grze
-1. Gracz wchodzi na serwer Java 1.21.4 przy użyciu konta Microsoft.
-2. PPM w **lewy Lectern** pokazuje pytanie i instrukcje na czacie.
-3. Gracz wpisuje `/vote yes` lub `/vote no`.
-4. PPM w **prawy Lectern** pokazuje zgodę na publiczne UUID i informację o apelu.
-5. Gracz wpisuje `/appeal sign` i zapisuje lokalny podpis.
-6. `/results` pokazuje aktualne głosy i liczbę podpisów.
-
-## Integracja mkal.pl
-Strona `mkal.pl/apel` używa formularza z weryfikacją e-mail. **Nie jest potwierdzony publiczny endpoint przyjmujący podpisy Minecraft bez e-maila.** Ten projekt celowo nie omija formularza ani weryfikacji. Bez `APPEAL_SYNC_URL` podpisy są **wyłącznie lokalne**, niewidoczne na mkal.pl.
-
-Aby je publikować, należy dodać **zaufany serwerowy endpoint** na mkal.pl i skonfigurować `APPEAL_SYNC_URL` oraz `APPEAL_SYNC_TOKEN`. Serwer wysyła JSON:
-```json
-{
-  "source": "minecraft",
-  "signature_id": "01234567-89ab-cdef-0123-456789abcdef",
-  "uuid": "01234567-89ab-cdef-0123-456789abcdef",
-  "name": "01234567-89ab-cdef-0123-456789abcdef",
-  "city": "MINECRAFT",
-  "consent_publication": true,
-  "consent_processing": true,
-  "signed_at": "2026-10-28T05:00:00.000Z"
-}
-```
-Pole `email` nie jest wysyłane. Nagłówek `Authorization: Bearer <token>` jest opcjonalny; nagłówek `Idempotency-Key` pomaga uniknąć duplikatów po ponowieniu. **Tylko odpowiedź HTTP 2xx** oznacza zsynchronizowanie. Endpoint powinien atomowo weryfikować token, UUID, zgodę i idempotencję.
-
-
-## Docker Compose
-Uruchomienie bez lokalnego Node.js (wymaga Docker Engine z Compose):
-
-```bash
+# Ustaw MC_BRIDGE_TOKEN na wygenerowany sekret (minimum 32 znaki):
+openssl rand -hex 32
+# Wklej wynik do .env jako MC_BRIDGE_TOKEN=...
 docker compose up -d --build
 docker compose logs -f
 ```
 
-Porty: TCP 25565 dla Minecrafta oraz TCP 3000 dla panelu wyników. Dane głosów przechowuje wolumen `vote-data`, więc przetrwają ponowne uruchomienie kontenera. Jeśli panel WWW ma być udostępniony publicznie, umieść przed nim proxy HTTPS.
+**Nie wklejaj sekretu do GitHuba.** `.env` jest ignorowany przez Git.
 
-## Ograniczenia
-- **1.21.4**, ponieważ Flying Squid 1.12.0 nie deklaruje wsparcia dla 1.21.6 ani 26.x. Natywne Dialogs API istnieje dopiero od **1.21.6**, dlatego tu interfejsem jest chat z komendami.
-- Lectern w świecie jest blokiem bez umieszczonej książki. PPM działa przez zdarzenie interakcji serwera, **nie** otwiera natywnego GUI książki.
-- Jeden głos na UUID ogranicza powtórzenia tego samego konta, ale nie zapobiega użyciu wielu kont.
-- Nie przeprowadzono ręcznego testu z rzeczywistym klientem Minecraft w tym środowisku. Testy repozytorium obejmują zapis, HTTP i geometrię pokoju.
+Minecraft: `ADRES_IP:25565`.
+Panel WWW: `127.0.0.1:3000` na serwerze hosta.
+Wyniki JSON: `GET /api/results`, stan: `GET /api/health`.
 
-## Uruchomienie produkcyjne
-Udostępnij TCP 25565 dla Minecrafta. Nie wyłączaj `online-mode`. Dla WWW użyj reverse proxy HTTPS i limitów żądań; publiczny jest tylko odczyt wyników. Zapis `data/votes.json` jest lokalny, dlatego uruchamiaj jedną instancję i rób backup danych.
+Compose:
+1. Buduje plugin `MKAVote.jar` z Gradle 9.2.1 i Java 25.
+2. Uruchamia usługę Node.js API.
+3. Tworzy serwer Paper 26.3 z `online-mode=true`.
+4. Instaluje ViaVersion i ViaBackwards przez oficjalne paczki Modrinth (najnowsze kompatybilne wydania).
+5. Wszystkie usługi komunikują się przez prywatną sieć Docker. Na zewnątrz otwarty jest Minecraft (TCP 25565). Panel WWW związany jest lokalnie z 127.0.0.1.
 
-## Licencja
-MIT (kod projektu). Zewnętrzne biblioteki zachowują własne licencje.
+Wolumeny `minecraft-data`, `vote-data`, `plugins` zachowują dane między restartami.
+
+> Uruchomienie kontenera z `EULA=TRUE` oznacza akceptację licencji Minecraft. Przed uruchomieniem zapoznaj się z EULA.
+
+## Głosowanie w grze
+
+Po wejściu gracz pojawia się w sali głosowania:
+- Lewy Lectern: **głosowanie**. Kliknięcie PPM otwiera menu, wybierz zieloną lub czerwoną wełnę.
+- Prawy Lectern: **podpisanie apelu**. Menu pokazuje informację o publicznym UUID i przycisk świadomej zgody.
+- Alternatywa: `/vote yes`, `/vote no`, `/appeal sign`, `/results`.
+
+Wszystkie wersje korzystają z tego samego menu ekwipunku Minecraft, nie z nowszego Dialogs API.
+
+Każdy gracz musi mieć autentyczne konto Minecraft. UUID pobiera Paper z uwierzytelnionej sesji w `online-mode=true`; nie jest przyjmowane z wiadomości tekstowej gracza. API sprawdza sekret mostka i odrzuca niezaufane zgłoszenia. Jeden głos na UUID i `ballot.id`. Podpis apelu można złożyć raz na UUID.
+
+## Obsługiwane klienty
+
+| Klient | Zakres wersji | Warunki |
+| --- | --- | --- |
+| Vanilla | 26.3, 26.2, 1.21.11, 1.21.1, 1.20.1 | Bez modów |
+| Fabric | Jak wyżej | Bez modów wymaganych przez serwer |
+| Forge | Jak wyżej, jeśli loader istnieje dla wersji | Niektóre modpacki mają wymagany handshake serwera |
+| NeoForge | Jak wyżej, jeśli loader istnieje dla wersji | Niektóre modpacki mają wymagany handshake serwera |
+
+**ViaBackwards nie oznacza automatycznej zgodności każdego modpacka.** Testuj wybraną konfigurację modów klienta. Potrzebna jest też wersja Via obsługująca Paper 26.3, np. wydanie 5.12.2 z 27 października 2026.
+
+## API Node.js
+
+Głosy:
+```http
+POST /internal/vote
+Authorization: Bearer <MC_BRIDGE_TOKEN>
+Content-Type: application/json
+
+{"uuid":"01234567-89ab-cdef-0123-456789abcdef","choice":"yes"}
+```
+
+Podpis:
+```http
+POST /internal/appeal
+Authorization: Bearer <MC_BRIDGE_TOKEN>
+Content-Type: application/json
+
+{"uuid":"01234567-89ab-cdef-0123-456789abcdef","consent":true}
+```
+
+Odpowiedź:
+```json
+{"ok":true,"created":true,"choice":"yes"}
+```
+
+Przy powtórnym oddaniu głosu `created=false` i pierwotny wybór pozostaje zapisany. API **nie wystawia publicznego endpointu zapisu bez autoryzacji**. Sekret musi być trzymany tylko na serwerach Node i Paper.
+
+Uwaga bezpieczeństwa: HTTP bridge uznaje tożsamość UUID po stronie zaufanego Paper. Sam token API ma prawo zapisywać podpisy i głosy: nie udostępniaj go graczom, modom klienta ani stronom WWW. Przy instalacji rozdzielonej na wiele hostów użyj HTTPS lub VPN, nie przesyłaj tokenu otwartą siecią.
+
+## Konfiguracja
+
+- `config/ballot.json`: tekst pytania i `ballot.id`.
+- `MC_BRIDGE_TOKEN`: wspólny sekret usług Paper i Node.
+- `MC_BRIDGE_URL`: adres API widziany z Paper, w Compose domyślnie `http://vote-api:3000`.
+- `APPEAL_SYNC_URL` i `APPEAL_SYNC_TOKEN`: opcjonalna synchronizacja podpisów do strony MKA.
+- `DATA_FILE`: lokalny zapis głosów JSON; zachowuj backup.
+- `HTTP_HOST`, `HTTP_PORT`: nasłuchiwanie HTTP.
+
+**Interfejs menu Paper ma obecnie stały tekst pytania.** Edycja `config/ballot.json` zmienia treść i identyfikator po stronie API, ale nie aktualizuje automatycznie tekstu w GUI wtyczki. Dla nowego pytania zmień też etykiety w `MkaVotePlugin.java` i przebuduj plugin.
+
+## Podpisy apelu MKA
+
+- Imię i nazwisko: UUID konta Minecraft.
+- Miasto: `MINECRAFT`.
+- Email: nie jest wysyłany.
+- Zapis lokalny działa od razu.
+- Publikacja na `mkal.pl/apel` **wymaga osobnego autoryzowanego endpointu serwerowego**; obecny formularz WWW nie jest używany ani obchodzony.
+
+Jeśli brak `APPEAL_SYNC_URL`, podpis otrzymuje stan `pending`. Gdy zaufany endpoint odpowie 2xx, podpis staje się `synced`. Wysłanie jest idempotentne po UUID. Nie pokazuj podpisów na stronie jako opublikowanych, dopóki endpoint nie potwierdzi zapisu.
+
+## Praca bez Docker
+
+Uruchom API Node z wygenerowanym `MC_BRIDGE_TOKEN`:
+
+```bash
+cp .env.example .env
+node --env-file=.env src/main.js
+npm test
+```
+
+Wymagana osobna instalacja Paper 26.3 z Java 25, pluginami ViaVersion i ViaBackwards oraz skompilowanym `MKAVote.jar`. Wtyczkę zbudujesz w katalogu głównym za pomocą:
+
+```bash
+gradle -p paper-plugin clean build
+```
+
+Plik wynikowy: `paper-plugin/build/libs/mka-vote-1.0.0.jar`. Umieść go w katalogu `plugins/` serwera Paper i ustaw `MC_BRIDGE_URL` oraz `MC_BRIDGE_TOKEN` w środowisku procesu Java.
+
+## Testy i ograniczenia
+
+- `npm test`: kontrola unikalności głosów, podpisów, autoryzacji HTTP i odczytu wyników.
+- `npm run check`: kontrola składni JS.
+- `gradle -p paper-plugin build`: kompilacja Java 25 z Paper API 26.3.
+- GitHub Actions uruchamia testy Node 22/24 oraz kompilację Paper pluginu.
+- **Niezweryfikowane ręcznie:** faktyczne połączenia pięciu klientów oraz ich wariantów z Fabric, Forge i NeoForge. Rzeczywista zgodność modpacków wymaga testów w grze.
+- Ten serwer służy głosowaniu kont Minecraft, nie wyborom powszechnym. Jedna osoba może mieć wiele kont.

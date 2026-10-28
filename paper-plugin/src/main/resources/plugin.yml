@@ -1,0 +1,17 @@
+name: MKAVote
+version: '1.0.0'
+main: pl.peterwolf.mka.vote.MkaVotePlugin
+api-version: '26.3'
+description: Cross-version MKA voting room with a secure Node.js bridge
+author: peterwolf-pl
+softdepend: [ViaVersion, ViaBackwards]
+commands:
+  vote:
+    description: Oddaj glos TAK lub NIE
+    usage: /vote yes|no
+  appeal:
+    description: Podpisz apel MKA
+    usage: /appeal sign
+  results:
+    description: Pokaz wyniki
+    usage: /results

@@ -1,8 +1,8 @@
 {
   "name": "minecraft-vote-serwer",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Lightweight Minecraft Java voting server using Node.js and Flying Squid",
+  "description": "Paper 26.3 voting room + Node.js protected voting API",
   "main": "src/main.js",
   "engines": {
     "node": ">=22"
@@ -10,11 +10,7 @@
   "scripts": {
     "start": "node src/main.js",
     "test": "node --test",
-    "check": "node --check src/main.js && node --check src/minecraft.js && node --check src/room-generator.js"
+    "check": "node --check src/main.js && node --check src/http.js && node --check src/internal-api.js && node --check src/store.js"
   },
-  "dependencies": {
-    "flying-squid": "1.12.0",
-    "prismarine-chunk": "^1.34.0",
-    "vec3": "^0.1.6"
-  }
+  "dependencies": {}
 }

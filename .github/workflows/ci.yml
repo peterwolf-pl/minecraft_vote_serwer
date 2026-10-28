@@ -1,9 +1,9 @@
-name: Node.js tests
+name: CI
 on:
   push:
   pull_request:
 jobs:
-  test:
+  node:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -16,3 +16,19 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run check
       - run: npm test
+  paper-plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.2.1'
+      - run: gradle -p paper-plugin --no-daemon clean build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MKAVote-Paper-26.3
+          path: paper-plugin/build/libs/mka-vote-1.0.0.jar

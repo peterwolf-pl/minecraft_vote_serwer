@@ -1,17 +1,70 @@
 services:
-  minecraft-vote:
-    build: .
+  vote-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      MC_HOST: 0.0.0.0
-      MC_PORT: 25565
       HTTP_HOST: 0.0.0.0
       HTTP_PORT: 3000
       DATA_FILE: /app/data/votes.json
+      MC_BRIDGE_TOKEN: ${MC_BRIDGE_TOKEN:?Set MC_BRIDGE_TOKEN in .env}
+      APPEAL_SYNC_URL: ${APPEAL_SYNC_URL:-}
+      APPEAL_SYNC_TOKEN: ${APPEAL_SYNC_TOKEN:-}
     ports:
-      - "25565:25565/tcp"
-      - "3000:3000/tcp"
+      - "127.0.0.1:3000:3000"
     volumes:
       - vote-data:/app/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+  plugin-install:
+    build:
+      context: .
+      dockerfile: paper/Dockerfile
+    volumes:
+      - plugins:/out
+    restart: "no"
+  minecraft:
+    image: itzg/minecraft-server:java25
+    restart: unless-stopped
+    depends_on:
+      vote-api:
+        condition: service_healthy
+      plugin-install:
+        condition: service_completed_successfully
+    environment:
+      EULA: "TRUE"
+      TYPE: PAPER
+      VERSION: "26.3"
+      ONLINE_MODE: "TRUE"
+      MAX_PLAYERS: "30"
+      VIEW_DISTANCE: "2"
+      SIMULATION_DISTANCE: "2"
+      DIFFICULTY: peaceful
+      MODE: adventure
+      SPAWN_MONSTERS: "FALSE"
+      SPAWN_ANIMALS: "FALSE"
+      GENERATE_STRUCTURES: "FALSE"
+      ENABLE_COMMAND_BLOCK: "FALSE"
+      MOTD: "MKA | Vote & Appeal | Java 1.20.1 - 26.3"
+      MODRINTH_PROJECTS: "viaversion,viabackwards"
+      MC_BRIDGE_URL: "http://vote-api:3000"
+      MC_BRIDGE_TOKEN: ${MC_BRIDGE_TOKEN:?Set MC_BRIDGE_TOKEN in .env}
+      MEMORY: "1G"
+    ports:
+      - "25565:25565/tcp"
+    volumes:
+      - minecraft-data:/data
+      - plugins:/data/plugins
+    networks: [internal]
+networks:
+  internal:
+    driver: bridge
 volumes:
+  minecraft-data:
   vote-data:
+  plugins:

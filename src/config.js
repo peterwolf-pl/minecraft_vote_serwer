@@ -17,6 +17,7 @@ function loadConfig(env = process.env) {
   if (syncUrl && new URL(syncUrl).protocol !== 'https:') throw new Error('APPEAL_SYNC_URL must use HTTPS')
   return {
     ballot,
+    bridgeToken: env.MC_BRIDGE_TOKEN || '',
     mcHost: env.MC_HOST || '0.0.0.0',
     mcPort: port(env.MC_PORT, 25565),
     httpHost: env.HTTP_HOST || '127.0.0.1',

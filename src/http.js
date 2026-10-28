@@ -1,5 +1,6 @@
 'use strict'
 const http = require('node:http')
+const { handleInternal } = require('./internal-api')
 
 const PAGE = `<!doctype html>
 <html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -40,9 +41,10 @@ async function refresh(){
 refresh();setInterval(refresh,10000);
 </script></body></html>`
 
-function createHttpServer(store, ballot, { host = '127.0.0.1', port = 3000 } = {}) {
+function createHttpServer(store, ballot, { host = '127.0.0.1', port = 3000, bridgeToken = '', onSigned = null } = {}) {
   const server = http.createServer((req, res) => {
     const pathname = new URL(req.url, 'http://localhost').pathname
+    if (pathname.startsWith('/internal/')) return void handleInternal(req, res, pathname, { token: bridgeToken, store, ballot, onSigned })
     if (req.method === 'GET' && pathname === '/api/results') {
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' })
       return res.end(JSON.stringify(store.results(ballot)))

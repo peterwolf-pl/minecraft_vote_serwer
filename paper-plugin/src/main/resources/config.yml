@@ -1,0 +1,3 @@
+# Overridden by MC_BRIDGE_URL and MC_BRIDGE_TOKEN environment variables.
+bridge-url: "http://127.0.0.1:3000"
+bridge-token: ""
