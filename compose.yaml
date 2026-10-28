@@ -45,6 +45,8 @@ services:
       VIEW_DISTANCE: "2"
       SIMULATION_DISTANCE: "2"
       DIFFICULTY: peaceful
+      LEVEL_TYPE: FLAT
+      ALLOW_NETHER: "FALSE"
       MODE: adventure
       SPAWN_MONSTERS: "FALSE"
       SPAWN_ANIMALS: "FALSE"
