@@ -33,6 +33,7 @@ public final class MkaVotePlugin extends JavaPlugin implements Listener {
     private static final String APPEAL_TITLE = "MKA - PODPIS APELU";
     private VoteRoom room;
     private BridgeClient bridge;
+    private volatile String ballotQuestion = "Czy popierasz niezaleznosc MKA w Lodzi?";
 
     @Override
     public void onEnable() {
@@ -47,6 +48,13 @@ public final class MkaVotePlugin extends JavaPlugin implements Listener {
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
+        bridge.getResults().thenAccept(data -> {
+            JsonObject ballot = data.getAsJsonObject("ballot");
+            if (ballot != null && ballot.has("question")) ballotQuestion = ballot.get("question").getAsString();
+        }).exceptionally(error -> {
+            getLogger().warning("Unable to load ballot text from API: " + error.getMessage());
+            return null;
+        });
         room = new VoteRoom(this);
         getServer().getPluginManager().registerEvents(this, this);
         if (Bukkit.getPluginManager().getPlugin("ViaBackwards") == null ||
@@ -99,7 +107,7 @@ public final class MkaVotePlugin extends JavaPlugin implements Listener {
     private void openVoteMenu(Player player) {
         Inventory menu = Bukkit.createInventory(null, 27, Component.text(VOTE_TITLE));
         menu.setItem(4, icon(Material.WRITABLE_BOOK, "Przyszlosc Muzeum Ksiazki Artystycznej",
-            "Czy popierasz niezaleznosc MKA w Lodzi?", "Wybierz TAK lub NIE. Jeden glos na konto."));
+            ballotQuestion, "Wybierz TAK lub NIE. Jeden glos na konto."));
         menu.setItem(11, icon(Material.LIME_WOOL, "TAK - popieram niezaleznosc", "Kliknij, aby oddac glos."));
         menu.setItem(15, icon(Material.RED_WOOL, "NIE - nie popieram", "Kliknij, aby oddac glos."));
         menu.setItem(22, icon(Material.BARRIER, "Zamknij"));
