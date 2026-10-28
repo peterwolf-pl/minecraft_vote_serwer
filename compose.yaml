@@ -1,0 +1,17 @@
+services:
+  minecraft-vote:
+    build: .
+    restart: unless-stopped
+    environment:
+      MC_HOST: 0.0.0.0
+      MC_PORT: 25565
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: 3000
+      DATA_FILE: /app/data/votes.json
+    ports:
+      - "25565:25565/tcp"
+      - "3000:3000/tcp"
+    volumes:
+      - vote-data:/app/data
+volumes:
+  vote-data:
