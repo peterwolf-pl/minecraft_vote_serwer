@@ -101,7 +101,7 @@ Uwaga bezpieczeństwa: HTTP bridge uznaje tożsamość UUID po stronie zaufanego
 - `DATA_FILE`: lokalny zapis głosów JSON; zachowuj backup.
 - `HTTP_HOST`, `HTTP_PORT`: nasłuchiwanie HTTP.
 
-**Interfejs menu Paper ma obecnie stały tekst pytania.** Edycja `config/ballot.json` zmienia treść i identyfikator po stronie API, ale nie aktualizuje automatycznie tekstu w GUI wtyczki. Dla nowego pytania zmień też etykiety w `MkaVotePlugin.java` i przebuduj plugin.
+Plugin Paper pobiera pytanie z Node.js podczas uruchomienia. Po zmianie `config/ballot.json` zrestartuj obie usługi, aby menu pokazywało nowe pytanie. Etykiety TAK/NIE są nadal stałe w pluginie i odpowiadają kluczom `yes` / `no` w API.
 
 ## Podpisy apelu MKA
 
